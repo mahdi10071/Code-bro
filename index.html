@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Code Editor</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Import a suitable font for multilingual UI and a monospace font for code */
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=Fira+Code:wght@400;500&family=Inter:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Inter', 'Cairo', sans-serif;
+        }
+        
+        /* Apply monospace font to all textareas */
+        textarea {
+            font-family: 'Fira Code', monospace;
+            white-space: pre;
+            word-wrap: normal;
+            overflow-wrap: normal;
+        }
+        
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827; /* Dark background for the track */
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #374151; /* Gray scrollbar handle */
+            border-radius: 20px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: #4b5563; /* Lighter gray on hover */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 flex flex-col h-screen overflow-hidden">
+
+    <!-- Header -->
+    <header class="p-2 bg-gray-800 border-b border-gray-700 flex items-center justify-between shadow-md z-10 h-[48px] flex-shrink-0">
+        <div class="flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400 mx-2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72"></path></svg>
+            <h1 class="text-xl font-bold text-white" data-lang-key="title">Live Code Editor</h1>
+        </div>
+        <div class="relative">
+             <select id="language-switcher" class="bg-gray-700 text-white rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
+                <option value="en">English</option>
+                <option value="ar">العربية</option>
+                <option value="fr">Français</option>
+                <option value="es">Español</option>
+                <option value="pt">Português</option>
+                <option value="it">Italiano</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow grid grid-rows-2 gap-1 bg-gray-700">
+        <!-- Top Row: Code Editors -->
+        <div id="editors-container" class="grid grid-cols-1 md:grid-cols-3 gap-1 bg-gray-700 overflow-hidden">
+            
+            <!-- JavaScript Panel (Left) -->
+            <div class="flex flex-col bg-gray-800">
+                <div class="bg-gray-900 p-2 flex justify-between items-center flex-shrink-0">
+                    <label for="js-code" class="text-sm font-semibold text-gray-300" data-lang-key="jsLabel">JavaScript</label>
+                    <button id="clear-js" class="hidden text-sm text-red-500 hover:text-red-400 font-semibold" data-lang-key="clearButton">Clear</button>
+                </div>
+                <div class="flex-grow">
+                    <textarea id="js-code" spellcheck="false" class="w-full h-full p-3 bg-[#1e1e1e] text-gray-300 focus:outline-none resize-none" data-lang-key="jsPlaceholder" placeholder="Enter JavaScript code here..."></textarea>
+                </div>
+            </div>
+
+            <!-- CSS Panel (Center) -->
+            <div class="flex flex-col bg-gray-800">
+                <div class="bg-gray-900 p-2 flex justify-between items-center flex-shrink-0">
+                    <label for="css-code" class="text-sm font-semibold text-gray-300" data-lang-key="cssLabel">CSS</label>
+                    <button id="clear-css" class="hidden text-sm text-red-500 hover:text-red-400 font-semibold" data-lang-key="clearButton">Clear</button>
+                </div>
+                <div class="flex-grow">
+                    <textarea id="css-code" spellcheck="false" class="w-full h-full p-3 bg-[#1e1e1e] text-gray-300 focus:outline-none resize-none" data-lang-key="cssPlaceholder" placeholder="Enter CSS code here..."></textarea>
+                </div>
+            </div>
+            
+            <!-- HTML Panel (Right) -->
+            <div class="flex flex-col bg-gray-800">
+                <div class="bg-gray-900 p-2 flex justify-between items-center flex-shrink-0">
+                    <label for="html-code" class="text-sm font-semibold text-gray-300" data-lang-key="htmlLabel">HTML</label>
+                    <button id="clear-html" class="hidden text-sm text-red-500 hover:text-red-400 font-semibold" data-lang-key="clearButton">Clear</button>
+                </div>
+                <div class="flex-grow">
+                    <textarea id="html-code" spellcheck="false" class="w-full h-full p-3 bg-[#1e1e1e] text-gray-300 focus:outline-none resize-none" data-lang-key="htmlPlaceholder" placeholder="Enter HTML code here..."></textarea>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Bottom Row: Output -->
+        <div id="output-container" class="flex flex-col bg-gray-800">
+             <label class="bg-gray-900 p-2 text-sm font-semibold text-gray-300 flex-shrink-0" data-lang-key="outputLabel">Output</label>
+             <iframe id="output-frame" class="w-full h-full bg-white border-none" title="Output"></iframe>
+        </div>
+    </main>
+
+    <script>
+        // --- DOM Elements ---
+        const htmlCode = document.getElementById('html-code');
+        const cssCode = document.getElementById('css-code');
+        const jsCode = document.getElementById('js-code');
+        const outputFrame = document.getElementById('output-frame');
+        const languageSwitcher = document.getElementById('language-switcher');
+        const editors = [
+            { code: htmlCode, clearBtn: document.getElementById('clear-html') },
+            { code: cssCode, clearBtn: document.getElementById('clear-css') },
+            { code: jsCode, clearBtn: document.getElementById('clear-js') },
+        ];
+
+        // --- Translation Data ---
+        const translations = {
+            en: {
+                title: 'Live Code Editor', htmlLabel: 'HTML', cssLabel: 'CSS', jsLabel: 'JavaScript', outputLabel: 'Output',
+                htmlPlaceholder: 'Enter HTML code here...', cssPlaceholder: 'Enter CSS code here...', jsPlaceholder: 'Enter JavaScript code here...', clearButton: 'Clear'
+            },
+            ar: {
+                title: 'محرر الأكواد المباشر', htmlLabel: 'HTML', cssLabel: 'CSS', jsLabel: 'JavaScript', outputLabel: 'الناتج',
+                htmlPlaceholder: 'اكتب كود HTML هنا...', cssPlaceholder: 'اكتب كود CSS هنا...', jsPlaceholder: 'اكتب كود JavaScript هنا...', clearButton: 'مسح'
+            },
+            fr: {
+                title: 'Éditeur de Code en Direct', htmlLabel: 'HTML', cssLabel: 'CSS', jsLabel: 'JavaScript', outputLabel: 'Résultat',
+                htmlPlaceholder: 'Entrez le code HTML ici...', cssPlaceholder: 'Entrez le code CSS ici...', jsPlaceholder: 'Entrez le code JavaScript ici...', clearButton: 'Effacer'
+            },
+            es: {
+                title: 'Editor de Código en Vivo', htmlLabel: 'HTML', cssLabel: 'CSS', jsLabel: 'JavaScript', outputLabel: 'Salida',
+                htmlPlaceholder: 'Ingrese el código HTML aquí...', cssPlaceholder: 'Ingrese el código CSS aquí...', jsPlaceholder: 'Ingrese el código JavaScript aquí...', clearButton: 'Limpiar'
+            },
+            pt: {
+                title: 'Editor de Código ao Vivo', htmlLabel: 'HTML', cssLabel: 'CSS', jsLabel: 'JavaScript', outputLabel: 'Resultado',
+                htmlPlaceholder: 'Digite o código HTML aqui...', cssPlaceholder: 'Digite o código CSS aqui...', jsPlaceholder: 'Digite o código JavaScript aqui...', clearButton: 'Limpar'
+            },
+            it: {
+                title: 'Editor di Codice Live', htmlLabel: 'HTML', cssLabel: 'CSS', jsLabel: 'JavaScript', outputLabel: 'Risultato',
+                htmlPlaceholder: 'Inserisci il codice HTML qui...', cssPlaceholder: 'Inserisci il codice CSS qui...', jsPlaceholder: 'Inserisci il codice JavaScript qui...', clearButton: 'Pulisci'
+            }
+        };
+
+        // --- Core Functions ---
+
+        /**
+         * Renders the combined code into the iframe with a debounce for performance.
+         */
+        let renderTimeout;
+        function renderCode() {
+            clearTimeout(renderTimeout);
+            renderTimeout = setTimeout(() => {
+                const sourceDoc = `
+                    <html>
+                        <head><style>${cssCode.value}</style></head>
+                        <body>
+                            ${htmlCode.value}
+                            <script>${jsCode.value}<\/script>
+                        </body>
+                    </html>
+                `;
+                const outputDoc = outputFrame.contentDocument || outputFrame.contentWindow.document;
+                outputDoc.open();
+                outputDoc.write(sourceDoc);
+                outputDoc.close();
+            }, 250); // 250ms delay
+        }
+
+        /**
+         * Sets the application language based on the selected language code.
+         * @param {string} lang - The language code (e.g., 'en', 'ar').
+         */
+        function setLanguage(lang) {
+            const langData = translations[lang];
+            if (!langData) return;
+
+            // Update direction for RTL languages
+            document.documentElement.lang = lang;
+            document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+
+            // Update text content and placeholders
+            document.querySelectorAll('[data-lang-key]').forEach(el => {
+                const key = el.dataset.langKey;
+                if (langData[key]) {
+                    if (el.tagName === 'TEXTAREA') {
+                        el.placeholder = langData[key];
+                    } else {
+                        el.textContent = langData[key];
+                    }
+                }
+            });
+            
+            // Update document title
+            document.title = langData.title;
+
+            // Save preference to localStorage
+            localStorage.setItem('preferredLanguage', lang);
+            languageSwitcher.value = lang;
+        }
+
+        // --- Event Listeners & Initialization ---
+
+        // Render code whenever any editor content changes
+        editors.forEach(editor => editor.code.addEventListener('input', renderCode));
+        
+        // Handle clear button visibility and functionality
+        editors.forEach(({ code, clearBtn }) => {
+            // Show/hide button on input
+            code.addEventListener('input', () => {
+                clearBtn.classList.toggle('hidden', code.value.length === 0);
+            });
+
+            // Clear textarea on button click
+            clearBtn.addEventListener('click', () => {
+                code.value = '';
+                clearBtn.classList.add('hidden');
+                code.focus();
+                renderCode(); // Re-render after clearing
+            });
+        });
+        
+        // Change language when the selector value changes
+        languageSwitcher.addEventListener('change', (e) => setLanguage(e.target.value));
+
+        // Set initial language on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedLang = localStorage.getItem('preferredLanguage') || 'en';
+            setLanguage(savedLang);
+            renderCode(); // Initial render
+            // Ensure clear buttons are in the correct initial state
+            editors.forEach(({ code, clearBtn }) => {
+                 clearBtn.classList.toggle('hidden', code.value.length === 0);
+            });
+        });
+
+    </script>
+
+</body>
+</html>
+
+

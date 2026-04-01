@@ -4,7 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0f172a">
-    <title>Live Code Editor Pro | Syntax Highlighting + AutoSave</title>
+    <title>محرر أكواد مباشر - Live Code Editor Pro | HTML, CSS, JS أونلاين</title>
+    <meta name="description" content="محرر أكواد مباشر مجاني مع إبراز بناء الجملة، حفظ تلقائي، وتحميل المشاريع. جرب HTML، CSS، JavaScript فوراً في المتصفح.">
+    <meta name="keywords" content="محرر أكواد, HTML editor, CSS editor, JavaScript editor, live code editor, online editor, syntax highlighting">
+    <meta name="author" content="Code Bro">
+    <meta name="robots" content="index, follow">
+    
+    <!-- بيانات منظمة (Structured Data) لتحسين ظهور الموقع في البحث -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Live Code Editor Pro",
+      "description": "محرر أكواد مباشر مع إبراز بناء الجملة وحفظ تلقائي ودعم HTML/CSS/JS.",
+      "url": "https://code-bro1.netlify.app/",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "All",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
+    
     <!-- Tailwind + Fonts -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cairo:wght@400;700&display=swap" rel="stylesheet">
@@ -116,7 +139,6 @@
                 <span data-lang-key="outputLabel">Output</span>
                 <span class="text-xs text-gray-400">⚡ live preview</span>
             </div>
-            <!-- استخدام srcdoc بدلاً من document.write لضمان العمل -->
             <iframe id="output-frame" class="w-full h-full bg-white border-none" title="Output" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" srcdoc="<html><body style='background:#fff; display:flex; align-items:center; justify-content:center; font-family:sans-serif;'>Loading preview...</body></html>"></iframe>
         </div>
     </main>
@@ -157,7 +179,6 @@
                 localStorage.setItem(STORAGE_KEYS.js, jsEditor.getValue());
             }
 
-            // دالة تحديث المعاينة باستخدام srcdoc (أكثر أمانًا واستقرارًا)
             function renderPreview() {
                 clearTimeout(renderTimeout);
                 renderTimeout = setTimeout(() => {
@@ -280,7 +301,7 @@
                 const savedLang = localStorage.getItem(STORAGE_KEYS.lang) || 'en';
                 setLanguage(savedLang);
                 document.getElementById('language-switcher').addEventListener('change', e => setLanguage(e.target.value));
-                renderPreview(); // عرض أولي
+                renderPreview();
                 updateClearButtons();
 
                 // Optional PWA (Service Worker)

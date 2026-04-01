@@ -1,247 +1,489 @@
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
-<head><meta name="google-site-verification" content="tHOiQ8R2NYlNJMUjQ2XkeSiWwz4MSA395dKS_MUw8z8" />
+<head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Code Editor</title>
-    <!-- Tailwind CSS for styling -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <title>Live Code Editor Pro | Syntax Highlighting + AutoSave</title>
+    <!-- Tailwind + Fonts -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <!-- CodeMirror -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <!-- Modes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/display/autorefresh.min.js"></script>
+    <!-- JSZip for ZIP download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
-        /* Import a suitable font for multilingual UI and a monospace font for code */
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=Fira+Code:wght@400;500&family=Inter:wght@400;700&display=swap');
-        
-        body {
-            font-family: 'Inter', 'Cairo', sans-serif;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', 'Cairo', sans-serif; overflow: hidden; background: #111827; }
+        .CodeMirror {
+            height: 100%;
+            font-size: 13px;
+            line-height: 1.5;
         }
-        
-        /* Apply monospace font to all textareas */
-        textarea {
-            font-family: 'Fira Code', monospace;
-            white-space: pre;
-            word-wrap: normal;
-            overflow-wrap: normal;
+        .editor-panel {
+            display: flex;
+            flex-direction: column;
+            background: #1e1e2e;
+            overflow: hidden;
         }
-        
-        /* Custom scrollbar for a cleaner look */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+        /* رأس المحرر ثابت لا يختفي */
+        .editor-header {
+            background-color: #111827;
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid #2d3748;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            z-index: 5;
         }
-        ::-webkit-scrollbar-track {
-            background: #111827; /* Dark background for the track */
+        .editor-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
-        ::-webkit-scrollbar-thumb {
-            background-color: #374151; /* Gray scrollbar handle */
-            border-radius: 20px;
+        .editor-label span:first-child {
+            background: #1f2937;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 500;
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background-color: #4b5563; /* Lighter gray on hover */
+        .cm-s-material-darker .CodeMirror-gutters { background-color: #21212e; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 20px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+        .toolbar-btn {
+            background: #2d3748;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+        .toolbar-btn:hover { background: #4a5568; transform: translateY(-1px); }
+        .toast-msg {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #1e293b;
+            color: #a5f3fc;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+            backdrop-filter: blur(8px);
+            border-left: 3px solid #3b82f6;
+        }
+        .action-buttons { display: flex; gap: 8px; align-items: center; }
+        .clear-btn, .copy-btn { transition: all 0.15s; }
+        .clear-btn.disabled-clear {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        /* تحسين تثبيت الرؤوس */
+        .editor-container {
+            flex: 1;
+            min-height: 0;
+            position: relative;
         }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200 flex flex-col h-screen overflow-hidden">
 
     <!-- Header -->
-    <header class="p-2 bg-gray-800 border-b border-gray-700 flex items-center justify-between shadow-md z-10 h-[48px] flex-shrink-0">
-        <div class="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400 mx-2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72"></path></svg>
-            <h1 class="text-xl font-bold text-white" data-lang-key="title">Live Code Editor</h1>
+    <header class="px-4 py-2 bg-gray-800 border-b border-gray-700 flex items-center justify-between shadow-md z-10 flex-shrink-0 h-14">
+        <div class="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72"></path></svg>
+            <h1 class="text-xl font-bold tracking-tight" data-lang-key="title">Live Code Editor Pro</h1>
         </div>
-        <div class="relative">
-             <select id="language-switcher" class="bg-gray-700 text-white rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
-                <option value="en">English</option>
-                <option value="ar">العربية</option>
-                <option value="fr">Français</option>
-                <option value="es">Español</option>
-                <option value="pt">Português</option>
-                <option value="it">Italiano</option>
+        <div class="flex items-center gap-3">
+            <button id="download-html-btn" class="toolbar-btn text-green-300 hover:text-green-200" data-lang-key="downloadHtmlBtn">⬇️ Download HTML</button>
+            <button id="download-zip-btn" class="toolbar-btn text-blue-300 hover:text-blue-200" data-lang-key="downloadZipBtn">⬇️ Download ZIP</button>
+            <select id="language-switcher" class="bg-gray-700 text-white rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                <option value="en">🇬🇧 English</option><option value="ar">🇸🇦 العربية</option><option value="fr">🇫🇷 Français</option>
+                <option value="es">🇪🇸 Español</option><option value="pt">🇵🇹 Português</option><option value="it">🇮🇹 Italiano</option>
             </select>
         </div>
     </header>
 
-    <!-- Main Content Area -->
-    <main class="flex-grow grid grid-rows-2 gap-1 bg-gray-700">
-        <!-- Top Row: Code Editors -->
-        <div id="editors-container" class="grid grid-cols-1 md:grid-cols-3 gap-1 bg-gray-700 overflow-hidden">
-            
-            <!-- JavaScript Panel (Left) -->
-            <div class="flex flex-col bg-gray-800">
-                <div class="bg-gray-900 p-2 flex justify-between items-center flex-shrink-0">
-                    <label for="js-code" class="text-sm font-semibold text-gray-300" data-lang-key="jsLabel">JavaScript</label>
-                    <button id="clear-js" class="hidden text-sm text-red-500 hover:text-red-400 font-semibold" data-lang-key="clearButton">Clear</button>
+    <!-- Main: 1/3 editors, 2/3 output -->
+    <main class="flex-grow grid grid-rows-[1fr_2fr] gap-1 bg-gray-700 overflow-hidden">
+        <!-- Top row: three code editors -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-1 overflow-hidden">
+            <!-- HTML Panel -->
+            <div class="editor-panel bg-gray-800 rounded-sm">
+                <div class="editor-header">
+                    <div class="editor-label">
+                        <span class="text-blue-400">&lt;/&gt;</span>
+                        <span data-lang-key="htmlLabel">HTML</span>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="copy-btn text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded text-blue-300 transition" data-target="html" data-lang-key="copyBtn">📋 Copy</button>
+                        <button class="clear-btn text-xs bg-gray-700 hover:bg-red-800 px-2 py-1 rounded text-red-300 transition" data-editor="html" data-lang-key="clearButton">Clear</button>
+                    </div>
                 </div>
-                <div class="flex-grow">
-                    <textarea id="js-code" spellcheck="false" class="w-full h-full p-3 bg-[#1e1e1e] text-gray-300 focus:outline-none resize-none" data-lang-key="jsPlaceholder" placeholder="Enter JavaScript code here..."></textarea>
-                </div>
+                <div class="editor-container"><textarea id="html-code" class="hidden"></textarea></div>
             </div>
-
-            <!-- CSS Panel (Center) -->
-            <div class="flex flex-col bg-gray-800">
-                <div class="bg-gray-900 p-2 flex justify-between items-center flex-shrink-0">
-                    <label for="css-code" class="text-sm font-semibold text-gray-300" data-lang-key="cssLabel">CSS</label>
-                    <button id="clear-css" class="hidden text-sm text-red-500 hover:text-red-400 font-semibold" data-lang-key="clearButton">Clear</button>
+            <!-- CSS Panel -->
+            <div class="editor-panel bg-gray-800 rounded-sm">
+                <div class="editor-header">
+                    <div class="editor-label">
+                        <span class="text-purple-400">{ }</span>
+                        <span data-lang-key="cssLabel">CSS</span>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="copy-btn text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded text-blue-300 transition" data-target="css" data-lang-key="copyBtn">📋 Copy</button>
+                        <button class="clear-btn text-xs bg-gray-700 hover:bg-red-800 px-2 py-1 rounded text-red-300 transition" data-editor="css" data-lang-key="clearButton">Clear</button>
+                    </div>
                 </div>
-                <div class="flex-grow">
-                    <textarea id="css-code" spellcheck="false" class="w-full h-full p-3 bg-[#1e1e1e] text-gray-300 focus:outline-none resize-none" data-lang-key="cssPlaceholder" placeholder="Enter CSS code here..."></textarea>
-                </div>
+                <div class="editor-container"><textarea id="css-code" class="hidden"></textarea></div>
             </div>
-            
-            <!-- HTML Panel (Right) -->
-            <div class="flex flex-col bg-gray-800">
-                <div class="bg-gray-900 p-2 flex justify-between items-center flex-shrink-0">
-                    <label for="html-code" class="text-sm font-semibold text-gray-300" data-lang-key="htmlLabel">HTML</label>
-                    <button id="clear-html" class="hidden text-sm text-red-500 hover:text-red-400 font-semibold" data-lang-key="clearButton">Clear</button>
+            <!-- JS Panel -->
+            <div class="editor-panel bg-gray-800 rounded-sm">
+                <div class="editor-header">
+                    <div class="editor-label">
+                        <span class="text-yellow-400">{ }</span>
+                        <span data-lang-key="jsLabel">JavaScript</span>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="copy-btn text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded text-blue-300 transition" data-target="js" data-lang-key="copyBtn">📋 Copy</button>
+                        <button class="clear-btn text-xs bg-gray-700 hover:bg-red-800 px-2 py-1 rounded text-red-300 transition" data-editor="js" data-lang-key="clearButton">Clear</button>
+                    </div>
                 </div>
-                <div class="flex-grow">
-                    <textarea id="html-code" spellcheck="false" class="w-full h-full p-3 bg-[#1e1e1e] text-gray-300 focus:outline-none resize-none" data-lang-key="htmlPlaceholder" placeholder="Enter HTML code here..."></textarea>
-                </div>
+                <div class="editor-container"><textarea id="js-code" class="hidden"></textarea></div>
             </div>
-
         </div>
 
-        <!-- Bottom Row: Output -->
-        <div id="output-container" class="flex flex-col bg-gray-800">
-             <label class="bg-gray-900 p-2 text-sm font-semibold text-gray-300 flex-shrink-0" data-lang-key="outputLabel">Output</label>
-             <iframe id="output-frame" class="w-full h-full bg-white border-none" title="Output"></iframe>
+        <!-- Bottom Row: Output iframe -->
+        <div class="flex flex-col bg-gray-800 overflow-hidden">
+            <div class="bg-gray-900 px-3 py-2 text-sm font-semibold text-gray-300 flex-shrink-0 border-b border-gray-700 flex justify-between items-center">
+                <span data-lang-key="outputLabel">Output</span>
+                <span class="text-xs text-gray-400">⚡ live preview</span>
+            </div>
+            <iframe id="output-frame" class="w-full h-full bg-white border-none" title="Output" sandbox="allow-same-origin allow-scripts"></iframe>
         </div>
     </main>
 
-    <script>
-        // --- DOM Elements ---
-        const htmlCode = document.getElementById('html-code');
-        const cssCode = document.getElementById('css-code');
-        const jsCode = document.getElementById('js-code');
-        const outputFrame = document.getElementById('output-frame');
-        const languageSwitcher = document.getElementById('language-switcher');
-        const editors = [
-            { code: htmlCode, clearBtn: document.getElementById('clear-html') },
-            { code: cssCode, clearBtn: document.getElementById('clear-css') },
-            { code: jsCode, clearBtn: document.getElementById('clear-js') },
-        ];
+    <div id="toast" class="toast-msg"></div>
 
-        // --- Translation Data ---
-        const translations = {
-            en: {
-                title: 'Live Code Editor', htmlLabel: 'HTML', cssLabel: 'CSS', jsLabel: 'JavaScript', outputLabel: 'Output',
-                htmlPlaceholder: 'Enter HTML code here...', cssPlaceholder: 'Enter CSS code here...', jsPlaceholder: 'Enter JavaScript code here...', clearButton: 'Clear'
-            },
-            ar: {
-                title: 'محرر الأكواد المباشر', htmlLabel: 'HTML', cssLabel: 'CSS', jsLabel: 'JavaScript', outputLabel: 'الناتج',
-                htmlPlaceholder: 'اكتب كود HTML هنا...', cssPlaceholder: 'اكتب كود CSS هنا...', jsPlaceholder: 'اكتب كود JavaScript هنا...', clearButton: 'مسح'
-            },
-            fr: {
-                title: 'Éditeur de Code en Direct', htmlLabel: 'HTML', cssLabel: 'CSS', jsLabel: 'JavaScript', outputLabel: 'Résultat',
-                htmlPlaceholder: 'Entrez le code HTML ici...', cssPlaceholder: 'Entrez le code CSS ici...', jsPlaceholder: 'Entrez le code JavaScript ici...', clearButton: 'Effacer'
-            },
-            es: {
-                title: 'Editor de Código en Vivo', htmlLabel: 'HTML', cssLabel: 'CSS', jsLabel: 'JavaScript', outputLabel: 'Salida',
-                htmlPlaceholder: 'Ingrese el código HTML aquí...', cssPlaceholder: 'Ingrese el código CSS aquí...', jsPlaceholder: 'Ingrese el código JavaScript aquí...', clearButton: 'Limpiar'
-            },
-            pt: {
-                title: 'Editor de Código ao Vivo', htmlLabel: 'HTML', cssLabel: 'CSS', jsLabel: 'JavaScript', outputLabel: 'Resultado',
-                htmlPlaceholder: 'Digite o código HTML aqui...', cssPlaceholder: 'Digite o código CSS aqui...', jsPlaceholder: 'Digite o código JavaScript aqui...', clearButton: 'Limpar'
-            },
-            it: {
-                title: 'Editor di Codice Live', htmlLabel: 'HTML', cssLabel: 'CSS', jsLabel: 'JavaScript', outputLabel: 'Risultato',
-                htmlPlaceholder: 'Inserisci il codice HTML qui...', cssPlaceholder: 'Inserisci il codice CSS qui...', jsPlaceholder: 'Inserisci il codice JavaScript qui...', clearButton: 'Pulisci'
-            }
+    <script>
+        // ========== CONFIG ==========
+        const STORAGE_KEYS = { html: 'proEditor_html', css: 'proEditor_css', js: 'proEditor_js', lang: 'proEditor_lang' };
+        let htmlEditor, cssEditor, jsEditor;
+        let renderTimeout;
+        const toast = document.getElementById('toast');
+
+        function showMessage(msg, isError = false) {
+            toast.style.opacity = '1';
+            toast.textContent = msg;
+            toast.style.borderLeftColor = isError ? '#ef4444' : '#3b82f6';
+            setTimeout(() => { toast.style.opacity = '0'; }, 1800);
+        }
+
+        // ========== DEFAULT DEMO ==========
+        const defaultCode = {
+            html: `<div class="card">
+    <div class="icon">✨</div>
+    <h1>Interactive Live Editor</h1>
+    <p>Edit HTML, CSS, and JavaScript in real-time. All changes are saved automatically.</p>
+    <button id="magicBtn">Click me</button>
+    <div id="outputMsg" class="message"></div>
+</div>`,
+            css: `body {
+    background: linear-gradient(145deg, #0b1120 0%, #111827 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: system-ui, 'Inter', sans-serif;
+    margin: 0;
+    padding: 1.5rem;
+}
+.card {
+    background: rgba(15, 25, 45, 0.8);
+    backdrop-filter: blur(12px);
+    border-radius: 2rem;
+    padding: 2rem;
+    text-align: center;
+    box-shadow: 0 25px 45px -12px rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.15);
+    max-width: 550px;
+    width: 100%;
+}
+.icon { font-size: 3rem; margin-bottom: 0.5rem; }
+h1 {
+    font-size: 1.8rem;
+    margin-bottom: 0.75rem;
+    background: linear-gradient(120deg, #a5f3fc, #c084fc);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+}
+p { color: #cbd5e6; margin-bottom: 1.5rem; line-height: 1.5; }
+button {
+    background: #3b82f6;
+    border: none;
+    padding: 0.7rem 1.8rem;
+    border-radius: 3rem;
+    font-weight: 600;
+    color: white;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 10px rgba(59,130,246,0.3);
+}
+button:hover { background: #2563eb; transform: scale(1.02); }
+.message { margin-top: 1rem; font-size: 0.9rem; color: #94a3b8; }`,
+            js: `document.getElementById('magicBtn')?.addEventListener('click', () => {
+    const msgDiv = document.getElementById('outputMsg');
+    msgDiv.textContent = '🎉 JavaScript is working! 🚀';
+    msgDiv.style.color = '#86efac';
+    setTimeout(() => { msgDiv.textContent = ''; }, 2000);
+});
+console.log('Live editor ready — syntax highlighting active!');`
         };
 
-        // --- Core Functions ---
+        // ========== STORAGE ==========
+        function loadFromStorage() {
+            return {
+                html: localStorage.getItem(STORAGE_KEYS.html) ?? defaultCode.html,
+                css: localStorage.getItem(STORAGE_KEYS.css) ?? defaultCode.css,
+                js: localStorage.getItem(STORAGE_KEYS.js) ?? defaultCode.js
+            };
+        }
+        function saveAllToStorage() {
+            localStorage.setItem(STORAGE_KEYS.html, htmlEditor.getValue());
+            localStorage.setItem(STORAGE_KEYS.css, cssEditor.getValue());
+            localStorage.setItem(STORAGE_KEYS.js, jsEditor.getValue());
+        }
 
-        /**
-         * Renders the combined code into the iframe with a debounce for performance.
-         */
-        let renderTimeout;
-        function renderCode() {
+        // ========== RENDER PREVIEW ==========
+        function renderPreview() {
             clearTimeout(renderTimeout);
             renderTimeout = setTimeout(() => {
-                const sourceDoc = `
-                    <html>
-                        <head><style>${cssCode.value}</style></head>
-                        <body>
-                            ${htmlCode.value}
-                            <script>${jsCode.value}<\/script>
-                        </body>
-                    </html>
-                `;
-                const outputDoc = outputFrame.contentDocument || outputFrame.contentWindow.document;
-                outputDoc.open();
-                outputDoc.write(sourceDoc);
-                outputDoc.close();
-            }, 250); // 250ms delay
+                const doc = outputFrame.contentDocument || outputFrame.contentWindow.document;
+                const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>${cssEditor.getValue()}</style></head><body>${htmlEditor.getValue()}<script>${jsEditor.getValue()}<\/script></body></html>`;
+                doc.open();
+                doc.write(fullHtml);
+                doc.close();
+            }, 180);
         }
 
-        /**
-         * Sets the application language based on the selected language code.
-         * @param {string} lang - The language code (e.g., 'en', 'ar').
-         */
-        function setLanguage(lang) {
-            const langData = translations[lang];
-            if (!langData) return;
-
-            // Update direction for RTL languages
-            document.documentElement.lang = lang;
-            document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-
-            // Update text content and placeholders
-            document.querySelectorAll('[data-lang-key]').forEach(el => {
-                const key = el.dataset.langKey;
-                if (langData[key]) {
-                    if (el.tagName === 'TEXTAREA') {
-                        el.placeholder = langData[key];
-                    } else {
-                        el.textContent = langData[key];
-                    }
+        // ========== UPDATE CLEAR BUTTONS ==========
+        function updateClearButtons() {
+            const htmlHas = htmlEditor.getValue().trim() !== '';
+            const cssHas = cssEditor.getValue().trim() !== '';
+            const jsHas = jsEditor.getValue().trim() !== '';
+            document.querySelectorAll('.clear-btn').forEach(btn => {
+                const type = btn.getAttribute('data-editor');
+                let isEmpty = false;
+                if (type === 'html') isEmpty = !htmlHas;
+                else if (type === 'css') isEmpty = !cssHas;
+                else if (type === 'js') isEmpty = !jsHas;
+                if (isEmpty) {
+                    btn.classList.add('disabled-clear');
+                } else {
+                    btn.classList.remove('disabled-clear');
                 }
             });
-            
-            // Update document title
-            document.title = langData.title;
-
-            // Save preference to localStorage
-            localStorage.setItem('preferredLanguage', lang);
-            languageSwitcher.value = lang;
         }
 
-        // --- Event Listeners & Initialization ---
-
-        // Render code whenever any editor content changes
-        editors.forEach(editor => editor.code.addEventListener('input', renderCode));
-        
-        // Handle clear button visibility and functionality
-        editors.forEach(({ code, clearBtn }) => {
-            // Show/hide button on input
-            code.addEventListener('input', () => {
-                clearBtn.classList.toggle('hidden', code.value.length === 0);
+        // ========== INIT CODE MIRROR ==========
+        function initEditors() {
+            const saved = loadFromStorage();
+            htmlEditor = CodeMirror.fromTextArea(document.getElementById('html-code'), {
+                mode: 'htmlmixed', theme: 'material-darker', lineNumbers: true, lineWrapping: true,
+                autoRefresh: true, tabSize: 2, placeholder: '<!-- HTML code -->'
             });
-
-            // Clear textarea on button click
-            clearBtn.addEventListener('click', () => {
-                code.value = '';
-                clearBtn.classList.add('hidden');
-                code.focus();
-                renderCode(); // Re-render after clearing
+            htmlEditor.setValue(saved.html);
+            cssEditor = CodeMirror.fromTextArea(document.getElementById('css-code'), {
+                mode: 'css', theme: 'material-darker', lineNumbers: true, lineWrapping: true,
+                autoRefresh: true, tabSize: 2, placeholder: '/* CSS styles */'
             });
-        });
-        
-        // Change language when the selector value changes
-        languageSwitcher.addEventListener('change', (e) => setLanguage(e.target.value));
+            cssEditor.setValue(saved.css);
+            jsEditor = CodeMirror.fromTextArea(document.getElementById('js-code'), {
+                mode: 'javascript', theme: 'material-darker', lineNumbers: true, lineWrapping: true,
+                autoRefresh: true, tabSize: 2, placeholder: '// JavaScript code'
+            });
+            jsEditor.setValue(saved.js);
 
-        // Set initial language on page load
+            const onChange = () => {
+                saveAllToStorage();
+                updateClearButtons();
+                renderPreview();
+            };
+            htmlEditor.on('change', onChange);
+            cssEditor.on('change', onChange);
+            jsEditor.on('change', onChange);
+            window.addEventListener('resize', () => [htmlEditor, cssEditor, jsEditor].forEach(ed => ed.refresh()));
+        }
+
+        // ========== CLEAR BUTTONS LOGIC ==========
+        function setupClearButtons() {
+            document.querySelectorAll('.clear-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (btn.classList.contains('disabled-clear')) return;
+                    const type = btn.getAttribute('data-editor');
+                    if (type === 'html') htmlEditor.setValue('');
+                    else if (type === 'css') cssEditor.setValue('');
+                    else if (type === 'js') jsEditor.setValue('');
+                    saveAllToStorage();
+                    updateClearButtons();
+                    renderPreview();
+                    showMessage(`✨ ${type.toUpperCase()} cleared`);
+                });
+            });
+        }
+
+        // ========== COPY BUTTONS ==========
+        async function copyToClipboard(text, label) {
+            try {
+                await navigator.clipboard.writeText(text);
+                showMessage(`📋 ${label} copied to clipboard`);
+            } catch { showMessage(`❌ Failed to copy ${label}`, true); }
+        }
+        function setupCopyButtons() {
+            document.querySelectorAll('.copy-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const target = btn.getAttribute('data-target');
+                    let code = '', label = '';
+                    if (target === 'html') { code = htmlEditor.getValue(); label = 'HTML'; }
+                    else if (target === 'css') { code = cssEditor.getValue(); label = 'CSS'; }
+                    else { code = jsEditor.getValue(); label = 'JavaScript'; }
+                    await copyToClipboard(code, label);
+                });
+            });
+        }
+
+        // ========== DOWNLOAD FUNCTIONS ==========
+        function downloadAsHtml() {
+            const htmlContent = htmlEditor.getValue();
+            const cssContent = cssEditor.getValue();
+            const jsContent = jsEditor.getValue();
+            const standalone = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Exported Live Code</title><style>${cssContent}</style></head><body>${htmlContent}<script>${jsContent}<\/script></body></html>`;
+            const blob = new Blob([standalone], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'live_editor_export.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showMessage('✅ Downloaded as single HTML file');
+        }
+
+        async function downloadAsZip() {
+            const htmlContent = htmlEditor.getValue();
+            const cssContent = cssEditor.getValue();
+            const jsContent = jsEditor.getValue();
+            try {
+                const zip = new JSZip();
+                zip.file("index.html", `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Live Project</title><link rel="stylesheet" href="style.css"></head><body>${htmlContent}<script src="script.js"><\/script></body></html>`);
+                zip.file("style.css", cssContent);
+                zip.file("script.js", jsContent);
+                const content = await zip.generateAsync({ type: "blob" });
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'live_code_project.zip';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showMessage('✅ Downloaded as ZIP package (HTML/CSS/JS)');
+            } catch (err) {
+                showMessage('❌ Failed to create ZIP', true);
+            }
+        }
+
+        // ========== INTERNATIONALIZATION ==========
+        const translations = {
+            en: { title: 'Live Code Editor Pro', htmlLabel: 'HTML', cssLabel: 'CSS', jsLabel: 'JavaScript', outputLabel: 'Output', downloadHtmlBtn: '⬇️ Download HTML', downloadZipBtn: '⬇️ Download ZIP', copyBtn: '📋 Copy', clearButton: 'Clear',
+                htmlPlaceholder: '<!-- HTML code -->', cssPlaceholder: '/* CSS styles */', jsPlaceholder: '// JavaScript code' },
+            ar: { title: 'محرر الأكواد المباشر المحترف', htmlLabel: 'HTML', cssLabel: 'CSS', jsLabel: 'JavaScript', outputLabel: 'المعاينة', downloadHtmlBtn: '⬇️ تحميل HTML', downloadZipBtn: '⬇️ تحميل ZIP', copyBtn: '📋 نسخ', clearButton: 'مسح',
+                htmlPlaceholder: '<!-- كود HTML -->', cssPlaceholder: '/* أنماط CSS */', jsPlaceholder: '// كود جافا سكريبت' },
+            fr: { title: 'Éditeur de Code Live Pro', htmlLabel: 'HTML', cssLabel: 'CSS', jsLabel: 'JavaScript', outputLabel: 'Aperçu', downloadHtmlBtn: '⬇️ Télécharger HTML', downloadZipBtn: '⬇️ Télécharger ZIP', copyBtn: '📋 Copier', clearButton: 'Effacer',
+                htmlPlaceholder: '<!-- Code HTML -->', cssPlaceholder: '/* Styles CSS */', jsPlaceholder: '// Code JavaScript' },
+            es: { title: 'Editor de Código en Vivo Pro', htmlLabel: 'HTML', cssLabel: 'CSS', jsLabel: 'JavaScript', outputLabel: 'Vista previa', downloadHtmlBtn: '⬇️ Descargar HTML', downloadZipBtn: '⬇️ Descargar ZIP', copyBtn: '📋 Copiar', clearButton: 'Limpiar',
+                htmlPlaceholder: '<!-- Código HTML -->', cssPlaceholder: '/* Estilos CSS */', jsPlaceholder: '// Código JavaScript' },
+            pt: { title: 'Editor de Código Ao Vivo Pro', htmlLabel: 'HTML', cssLabel: 'CSS', jsLabel: 'JavaScript', outputLabel: 'Pré-visualização', downloadHtmlBtn: '⬇️ Baixar HTML', downloadZipBtn: '⬇️ Baixar ZIP', copyBtn: '📋 Copiar', clearButton: 'Limpar',
+                htmlPlaceholder: '<!-- Código HTML -->', cssPlaceholder: '/* Estilos CSS */', jsPlaceholder: '// Código JS' },
+            it: { title: 'Editor di Codice Live Pro', htmlLabel: 'HTML', cssLabel: 'CSS', jsLabel: 'JavaScript', outputLabel: 'Anteprima', downloadHtmlBtn: '⬇️ Scarica HTML', downloadZipBtn: '⬇️ Scarica ZIP', copyBtn: '📋 Copia', clearButton: 'Pulisci',
+                htmlPlaceholder: '<!-- Codice HTML -->', cssPlaceholder: '/* Stili CSS */', jsPlaceholder: '// Codice JavaScript' }
+        };
+        function setLanguage(lang) {
+            const data = translations[lang];
+            if (!data) return;
+            document.documentElement.lang = lang;
+            document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+            document.querySelectorAll('[data-lang-key]').forEach(el => {
+                const key = el.dataset.langKey;
+                if (data[key]) {
+                    if (el.tagName === 'TEXTAREA') el.placeholder = data[key];
+                    else el.textContent = data[key];
+                }
+            });
+            document.title = data.title;
+            if (htmlEditor) htmlEditor.setOption('placeholder', data.htmlPlaceholder);
+            if (cssEditor) cssEditor.setOption('placeholder', data.cssPlaceholder);
+            if (jsEditor) jsEditor.setOption('placeholder', data.jsPlaceholder);
+            localStorage.setItem(STORAGE_KEYS.lang, lang);
+            document.getElementById('language-switcher').value = lang;
+        }
+
+        // ========== PWA ==========
+        function setupPWA() {
+            const manifest = { name: "Live Code Editor Pro", short_name: "CodeLive", start_url: ".", display: "standalone", theme_color: "#0f172a", background_color: "#0f172a", icons: [{ src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%230f172a'/%3E%3Cpath fill='%233b82f6' d='M30,70 L50,30 L70,70 L55,70 L45,55 L35,70 Z'/%3E%3C/svg%3E", sizes: "any", type: "image/svg+xml", purpose: "any maskable" }] };
+            const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+            const manifestURL = URL.createObjectURL(manifestBlob);
+            const linkManifest = document.createElement('link');
+            linkManifest.rel = 'manifest';
+            linkManifest.href = manifestURL;
+            document.head.appendChild(linkManifest);
+            if ('serviceWorker' in navigator) {
+                const swCode = `const CACHE="live-editor-v7"; const urls=[location.pathname,"https://cdn.tailwindcss.com","https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css","https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css","https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js","https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js","https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js","https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js","https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js","https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/display/autorefresh.min.js","https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"]; self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(urls)))); self.addEventListener("fetch",e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));`;
+                const swBlob = new Blob([swCode], {type: 'application/javascript'});
+                const swURL = URL.createObjectURL(swBlob);
+                navigator.serviceWorker.register(swURL).catch(err => console.log("SW note:", err));
+            }
+        }
+
+        // ========== BOOTSTRAP ==========
         window.addEventListener('DOMContentLoaded', () => {
-            const savedLang = localStorage.getItem('preferredLanguage') || 'en';
+            initEditors();
+            setupClearButtons();
+            setupCopyButtons();
+            document.getElementById('download-html-btn').addEventListener('click', downloadAsHtml);
+            document.getElementById('download-zip-btn').addEventListener('click', downloadAsZip);
+            const savedLang = localStorage.getItem(STORAGE_KEYS.lang) || 'en';
             setLanguage(savedLang);
-            renderCode(); // Initial render
-            // Ensure clear buttons are in the correct initial state
-            editors.forEach(({ code, clearBtn }) => {
-                 clearBtn.classList.toggle('hidden', code.value.length === 0);
-            });
+            document.getElementById('language-switcher').addEventListener('change', (e) => setLanguage(e.target.value));
+            renderPreview();
+            updateClearButtons();
+            setupPWA();
         });
-
     </script>
-
 </body>
 </html>
-
-

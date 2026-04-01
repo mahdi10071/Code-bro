@@ -3,33 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Preview</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.1/codemirror.min.css">
+    <title>CodeMirror Editor</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        #editor-container { display: flex; justify-content: space-between; }
+        .editor { width: 30%; border-right: 1px solid #ccc; padding: 10px; }
+        .editor:last-child { border-right: none; }
+        #preview { width: 100%; height: 300px; border: none; }
+        button { margin-top: 10px; }
+    </style>
 </head>
 <body>
-    <iframe id="previewIframe" src="" style="width: 100%; height: 500px;" frameborder="0"></iframe>
+    <h1>Complete CodeMirror Editors</h1>
+    <div id="editor-container">
+        <div class="editor">
+            <h2>HTML</h2>
+            <textarea id="html-editor"></textarea>
+            <button onclick="renderPreview()">Render Preview</button>
+            <button onclick="copyToClipboard('html-editor')">Copy</button>
+            <button onclick="clearEditor('html-editor')">Clear</button>
+            <button onclick="downloadFile('html', 'text/html')">Download HTML</button>
+        </div>
+        <div class="editor">
+            <h2>CSS</h2>
+            <textarea id="css-editor"></textarea>
+            <button onclick="renderPreview()">Render Preview</button>
+            <button onclick="copyToClipboard('css-editor')">Copy</button>
+            <button onclick="clearEditor('css-editor')">Clear</button>
+        </div>
+        <div class="editor">
+            <h2>JavaScript</h2>
+            <textarea id="js-editor"></textarea>
+            <button onclick="renderPreview()">Render Preview</button>
+            <button onclick="copyToClipboard('js-editor')">Copy</button>
+            <button onclick="clearEditor('js-editor')">Clear</button>
+        </div>
+    </div>
+    <iframe id="preview"></iframe>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.1/codemirror.min.js"></script>
     <script>
-        let debounceTimer;
+        const htmlEditor = CodeMirror.fromTextArea(document.getElementById('html-editor'), { mode: 'text/html', lineNumbers: true });
+        const cssEditor = CodeMirror.fromTextArea(document.getElementById('css-editor'), { mode: 'text/css', lineNumbers: true });
+        const jsEditor = CodeMirror.fromTextArea(document.getElementById('js-editor'), { mode: 'text/javascript', lineNumbers: true });
 
-        function renderPreview(content) {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                try {
-                    const iframe = document.getElementById('previewIframe');
-                    const doc = iframe.contentDocument || iframe.contentWindow.document;
-                    if (!doc) throw new Error('Unable to access iframe document');
-
-                    doc.open();
-                    doc.write(content);
-                    doc.close();
-                } catch (error) {
-                    console.error('Error rendering preview:', error);
-                    // Fallback handling can be added here
-                }
-            }, 300);
+        function renderPreview() {
+            const html = htmlEditor.getValue();
+            const css = cssEditor.getValue();
+            const js = jsEditor.getValue();
+            const iframe = document.getElementById('preview');
+            const previewDoc = iframe.contentDocument || iframe.contentWindow.document;
+            previewDoc.open();
+            previewDoc.write(`<!DOCTYPE html><html lang='en'><head><style>${css}</style></head><body>${html}<script>${js}<\/script></body></html>`);
+            previewDoc.close();
         }
 
-        // Example: Call renderPreview with some HTML content
-        renderPreview('<h1>Hello, World!</h1>');
+        function copyToClipboard(editorId) {
+            const editor = document.getElementById(editorId);
+            editor.focus();
+            document.execCommand('selectAll');
+            document.execCommand('copy');
+            alert('Copied to clipboard!');
+        }
+
+        function clearEditor(editorId) {
+            const editor = document.getElementById(editorId);
+            editor.value = '';
+            if (editorId === 'html-editor') {
+                htmlEditor.setValue('');
+            } else if (editorId === 'css-editor') {
+                cssEditor.setValue('');
+            } else {
+                jsEditor.setValue('');
+            }
+        }
+
+        function downloadFile(fileName, mimeType) {
+            const content = htmlEditor.getValue();
+            const blob = new Blob([content], { type: mimeType });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${fileName}.html`;
+            link.click();
+        }
+
+        // Language Support
+        // TODO: Implement language support functionality
     </script>
 </body>
 </html>
